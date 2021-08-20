@@ -93,7 +93,7 @@ class InceptionFramework:
         conv5x5 = Conv2D(f5x5, (5,5), padding='same', activation=tf.nn.relu)(conv5x5_red)
 
         # 3x3 max pooling
-        pool = MaxPooling2D((3,3), strides=(2,2), padding='same')(in_layer)
+        pool = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
         pool = Conv2D(fpool, (1,1), padding='same', activation=tf.nn.relu)(pool)
 
         # concatenate the convolutional layers , poling layer and pass on

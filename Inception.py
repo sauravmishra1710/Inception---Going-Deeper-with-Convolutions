@@ -12,6 +12,13 @@ class InceptionFramework:
     
     def __init__(self):
         
+        """
+        The inception framework to implement the inception network v1
+        from the original paper - Going deeper with convolutions
+        @ https://arxiv.org/abs/1409.4842
+        
+        """
+        
         pass
     
     
@@ -34,7 +41,7 @@ class InceptionFramework:
         
         """
         
-        # define model input
+        # model input
         in_layer = Input(shape = INPUT_SHAPE)
         
         # 1x1 conv
@@ -77,7 +84,7 @@ class InceptionFramework:
             INPUT_SHAPE: the input layer shape. Default Valus is (299, 299, 3).
         
         Return:
-            model: the keras model instance.
+            model: the inception block.
         
         """
         
@@ -96,13 +103,28 @@ class InceptionFramework:
         pool = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
         pool = Conv2D(fpool, (1,1), padding='same', activation=tf.nn.relu)(pool)
 
-        # concatenate the convolutional layers , poling layer and pass on
-        # to the next layers.
+        # concatenate the convolutional layers , poling layer to be passed
+        # onto the next layers.
         out_layer = concatenate([conv1x1, conv3x3, conv5x5, pool], axis=-1)
         
         return out_layer
     
     def Build_Sample_Inception_Network(self, INPUT_SHAPE=(299, 299, 3)):
+        
+        """
+        Builds a sample incception network with the parameters taken 
+        from the inception blocks 3(a) and 3(b) defined in the 
+        Table 1: GoogLeNet incarnation of the Inception architecture in the paper
+        @ https://arxiv.org/pdf/1409.4842.pdf
+        
+        Parameters:
+            
+            INPUT_SHAPE (Optional): the input layer shape. Default Valus is (299, 299, 3).
+        
+        Return:
+            model: the keras model instance.
+        
+        """
         
         # define model input
         inp = Input(shape = INPUT_SHAPE)
@@ -116,7 +138,7 @@ class InceptionFramework:
                                                                f5x5_red=32, f5x5=96, fpool=32)
 
         gap = GlobalAveragePooling2D(data_format='channels_last')(incep2)
-        dense = Dense(1024, activation='relu')(gap)
+        dense = Dense(1024, activation=tf.nn.relu)(gap)
         dropout = Dropout(0.4)(dense)
         out  = Dense(1, activation='sigmoid')(dropout)
 
@@ -130,3 +152,50 @@ class InceptionFramework:
         # summarize model
         print(model.summary())
         return model
+    
+    def conv2d_bn(inp_tensor, filters, rows, cols, padding='same', strides=(1, 1)):
+        
+        """
+        Utility function to apply convolution operation 
+        followed by batch normalization.
+
+        Arguments:
+            inp_tensor: input tensor.
+            filters: number of filters for the convolution operation.
+            rows: height of the convolution kernel.
+            cols: width of the convolution kernel.
+            padding: padding mode in `Conv2D`. Default is 'same'.
+            strides: strides in `Conv2D`. Default is (1, 1).
+                
+        Return:
+            out_layer: Output tensor after the Convolution and BatchNormalization.
+        """
+        
+        layer = Conv2D(filters=filters, 
+                       kernel_size=(rows, cols),
+                       strides=strides,
+                       padding=padding)(inp_tensor)
+        
+        layer = BatchNormalization(axis=3, 
+                                   scale=False)(layer) # assume channels_last
+        
+        out_layer = Activation(tf.nn.relu)(layer)
+        
+        return out_layer
+
+    
+    def InceptionV1(self, INPUT_SHAPE=(299, 299, 3)):
+        
+        """
+        Builds the full incception network with the parameters defined 
+        in the Table 1: GoogLeNet incarnation of the Inception architecture 
+        in the original paper @ https://arxiv.org/pdf/1409.4842.pdf
+        
+        Parameters:
+            
+            INPUT_SHAPE (Optional): the input layer shape. Default Valus is (299, 299, 3).
+        
+        Return:
+            model: the keras model instance.
+        
+        """

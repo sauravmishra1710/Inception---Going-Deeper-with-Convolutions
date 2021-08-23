@@ -124,18 +124,18 @@ class InceptionFramework:
         """
         
         
-        # 1x1 conv
+        # #1×1 conv
         conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
 
-        # 3x3 reduce and conv
+        # 3x3 reduce (#3×3reduce) and #3x3 conv
         conv3x3_red = self.__conv2d_bn(inp=in_layer, filters=f3x3_red, kernel_size=(1,1), padding='same')
         conv3x3 = self.__conv2d_bn(inp=conv3x3_red, filters=f3x3, kernel_size=(3,3), padding='same')
 
-        # 5x5 reduce and conv
+        # 5x5 reduce (#5x5reduce) and #5x5 conv
         conv5x5_red = self.__conv2d_bn(inp=in_layer, filters=f5x5_red, kernel_size=(1,1), padding='same')
         conv5x5 = self.__conv2d_bn(inp=conv5x5_red, filters=f5x5, kernel_size=(5,5), padding='same')
 
-        # 3x3 max pooling
+        # 3x3 max pooling and 1x1 projection layer - poolproj
         pool = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
         pool = self.__conv2d_bn(inp=pool, filters=fpool, kernel_size=(1,1), padding='same')
 
@@ -144,6 +144,41 @@ class InceptionFramework:
         out_layer = concatenate([conv1x1, conv3x3, conv5x5, pool], axis=-1)
         
         return out_layer
+    
+    def __IncepAuxiliaryClassifierModule(self, inp_tensor):
+        
+        """
+        Builds the inception auxiliary classifier. 
+        GoogLeNet introduces two auxiliary losses before the 
+        actual loss and makes the gradients flow backward more sensible. 
+        These gradients travel a shorter path and help initial layers converge faster.
+        
+        These classifiers take the form of smaller convolutional networks put 
+        on top of the output of the Inception (4a) and (4d) modules. 
+        During training, their loss gets added to the total loss of the
+        network with a discount weight (the losses of the auxiliary classifiers were weighted by 0.3). At
+        inference time, these auxiliary networks are discarded.
+        
+        The auxiliary classifier architecture is as follows - 
+            1. An average pooling layer with 5×5 filter size and stride 3.
+            2. A 1×1 convolution with 128 filters for dimension reduction and rectified linear activation.
+            3. A fully connected layer with 1024 units and rectified linear activation.
+            4. A dropout layer with 70% ratio of dropped outputs.
+            5. A linear layer with softmax loss as the classifier (predicting the same 1000 classes as the
+               main classifier, but removed at inference time).
+            
+        Ref: Section 5 in the paper @ https://arxiv.org/pdf/1409.4842.pdf 
+        
+        """
+        
+        aux = AveragePooling2D(pool_size=(5, 5), strides=3)(inp_tensor)
+        aux = Conv2D(128, 1, padding='same', activation=tf.nn.relu)(aux)
+        aux = Flatten()(aux)
+        aux = Dense(1024, activation=tf.nn.relu)(aux)
+        aux = Dropout(0.7)(aux)
+        aux = Dense(10, activation=tf.nn.softmax)(aux)
+        
+        return aux
     
     def Build_Sample_Inception_Network(self, INPUT_SHAPE=(299, 299, 3)):
         
@@ -199,7 +234,7 @@ class InceptionFramework:
         
         Parameters:
             
-            INPUT_SHAPE (Optional): the input layer shape. Default Valus is (299, 299, 3).
+            INPUT_SHAPE (Optional): the input layer shape. Default Value is (299, 299, 3).
         
         Return:
             model: the keras model instance.

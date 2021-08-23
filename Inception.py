@@ -145,7 +145,7 @@ class InceptionFramework:
         
         return out_layer
     
-    def __IncepAuxiliaryClassifierModule(self, inp_tensor):
+    def __IncepAuxiliaryClassifierModule(self, inp_tensor, num_classes):
         
         """
         Builds the inception auxiliary classifier. 
@@ -169,16 +169,19 @@ class InceptionFramework:
             
         Ref: Section 5 in the paper @ https://arxiv.org/pdf/1409.4842.pdf 
         
+        Parameters:
+            inp_tensor: the input tensor.
+            num_classes: the number of output classes.
+            
         """
         
         aux = AveragePooling2D(pool_size=(5, 5), strides=3)(inp_tensor)
-        aux = Conv2D(128, 1, padding='same', activation=tf.nn.relu)(aux)
+        aux = Conv2D(filters=128, strides=1, padding='same', activation=tf.nn.relu)(aux)
         aux = Flatten()(aux)
         aux = Dense(1024, activation=tf.nn.relu)(aux)
         aux = Dropout(0.7)(aux)
-        aux = Dense(10, activation=tf.nn.softmax)(aux)
+        aux = Dense(units=num_classes, activation=tf.nn.softmax)(aux)
         
-        return aux
     
     def Build_Sample_Inception_Network(self, INPUT_SHAPE=(299, 299, 3)):
         

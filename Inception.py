@@ -21,6 +21,35 @@ class InceptionFramework:
         
         pass
     
+    def conv2d_bn(self, inp, filters, kernel_size, padding='same', strides=(1, 1)):
+        
+        """
+        Utility function to apply convolution operation 
+        followed by batch normalization.
+
+        Arguments:
+            inp: input tensor.
+            filters: number of filters for the convolution operation.
+            kernel_size: size of the convolving kernel. Tuple of (height, width)
+            padding: padding mode in `Conv2D`. Default is 'same'.
+            strides: strides in `Conv2D`. Default is (1, 1).
+                
+        Return:
+            out_tensor: Output tensor after the Convolution and BatchNormalization.
+        """
+        
+        layer = Conv2D(filters=filters, 
+                       kernel_size=kernel_size,
+                       strides=strides,
+                       padding=padding)(inp)
+        
+        layer = BatchNormalization(axis=3, 
+                                   scale=False)(layer) # assume channels_last
+        
+        out_tensor = Activation(tf.nn.relu)(layer)
+        
+        return out_tensor
+    
     
     def Naive_Inception_Module(self, f1x1, f3x3, f5x5, INPUT_SHAPE=(299, 299, 3)):
         
@@ -41,26 +70,28 @@ class InceptionFramework:
         
         """
         
+        # conv2d_bn(inp, filters, kernel_size, padding='same', strides=(1, 1))
+        
         # model input
         in_layer = Input(shape = INPUT_SHAPE)
         
         # 1x1 conv
-        conv1x1 = Conv2D(f1x1, (1,1), padding='same', activation=tf.nn.relu)(in_layer)
+        conv1x1 = self.conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
         
         # 3x3 conv
-        conv3x3 = Conv2D(f3x3, (3,3), padding='same', activation=tf.nn.relu)(in_layer)
+        conv3x3 = self.conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same')
         
         # 5x5 conv
-        conv5x5 = Conv2D(f5x5, (5,5), padding='same', activation=tf.nn.relu)(in_layer)
+        conv5x5 = self.conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
         
         # 3x3 max pooling
         pool3x3 = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
         
         # concatenate the convolution and the pooling layers,
-        out_layer = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1)
+        out_tensor = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1)
         
         # create model
-        model = Model(inputs = in_layer, outputs = out_layer)
+        model = Model(inputs = in_layer, outputs = out_tensor, name = "Naive Inception Block")
         
         return model
     
@@ -81,7 +112,7 @@ class InceptionFramework:
                       reduce the parameters befor applying the 5x5 convolutions.
             f5x5: number of filters for the 5x5 convolutions
             fpool: number of filters for the pooling layer.
-            INPUT_SHAPE: the input layer shape. Default Valus is (299, 299, 3).
+            INPUT_SHAPE: the input layer shape. Default Values is (299, 299, 3).
         
         Return:
             model: the inception block.
@@ -152,36 +183,6 @@ class InceptionFramework:
         # summarize model
         print(model.summary())
         return model
-    
-    def conv2d_bn(inp_tensor, filters, rows, cols, padding='same', strides=(1, 1)):
-        
-        """
-        Utility function to apply convolution operation 
-        followed by batch normalization.
-
-        Arguments:
-            inp_tensor: input tensor.
-            filters: number of filters for the convolution operation.
-            rows: height of the convolution kernel.
-            cols: width of the convolution kernel.
-            padding: padding mode in `Conv2D`. Default is 'same'.
-            strides: strides in `Conv2D`. Default is (1, 1).
-                
-        Return:
-            out_layer: Output tensor after the Convolution and BatchNormalization.
-        """
-        
-        layer = Conv2D(filters=filters, 
-                       kernel_size=(rows, cols),
-                       strides=strides,
-                       padding=padding)(inp_tensor)
-        
-        layer = BatchNormalization(axis=3, 
-                                   scale=False)(layer) # assume channels_last
-        
-        out_layer = Activation(tf.nn.relu)(layer)
-        
-        return out_layer
 
     
     def InceptionV1(self, INPUT_SHAPE=(299, 299, 3)):

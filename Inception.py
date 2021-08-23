@@ -21,7 +21,7 @@ class InceptionFramework:
         
         pass
     
-    def conv2d_bn(self, inp, filters, kernel_size, padding='same', strides=(1, 1)):
+    def __conv2d_bn(self, inp, filters, kernel_size, padding='same', strides=(1, 1)):
         
         """
         Utility function to apply convolution operation 
@@ -76,13 +76,13 @@ class InceptionFramework:
         in_layer = Input(shape = INPUT_SHAPE)
         
         # 1x1 conv
-        conv1x1 = self.conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
+        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
         
         # 3x3 conv
-        conv3x3 = self.conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same')
+        conv3x3 = self.__conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same')
         
         # 5x5 conv
-        conv5x5 = self.conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
+        conv5x5 = self.__conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
         
         # 3x3 max pooling
         pool3x3 = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
@@ -95,13 +95,17 @@ class InceptionFramework:
         
         return model
     
-    def Build_Inception_With_Dimension_Reduction(self, in_layer, f1x1, f3x3_red, f3x3, f5x5_red, f5x5, fpool):
+    def __Inception_With_Dimension_Reduction(self, in_layer, f1x1, f3x3_red, f3x3, f5x5_red, f5x5, fpool):
         
         """
         Builds the incception module where convolution on an input is performed
         with 3 different sizes of filters (1x1, 3x3, 5x5) with dimension reduction. 
         Additionally, max pooling is also performed. The outputs are concatenated 
         and sent to the next inception module.
+        
+        1×1 convolutions are used to compute reductions before the expensive 
+        3×3 and 5×5 convolutions. Besides being used as reductions, they also 
+        include the use of rectified linear activation which makes them dual-purpose.
         
         Parameters:
             f1x1: number of filters for the 1x1 convolutions
@@ -119,20 +123,21 @@ class InceptionFramework:
         
         """
         
+        
         # 1x1 conv
-        conv1x1 = Conv2D(f1x1, (1,1), padding='same', activation=tf.nn.relu)(in_layer)
+        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
 
         # 3x3 reduce and conv
-        conv3x3_red = Conv2D(f3x3_red, (1,1), padding='same', activation=tf.nn.relu)(in_layer)
-        conv3x3 = Conv2D(f3x3, (3,3), padding='same', activation=tf.nn.relu)(conv3x3_red)
+        conv3x3_red = self.__conv2d_bn(inp=in_layer, filters=f3x3_red, kernel_size=(1,1), padding='same')
+        conv3x3 = self.__conv2d_bn(inp=conv3x3_red, filters=f3x3, kernel_size=(3,3), padding='same')
 
         # 5x5 reduce and conv
-        conv5x5_red = Conv2D(f5x5_red, (1,1), padding='same', activation=tf.nn.relu)(in_layer)
-        conv5x5 = Conv2D(f5x5, (5,5), padding='same', activation=tf.nn.relu)(conv5x5_red)
+        conv5x5_red = self.__conv2d_bn(inp=in_layer, filters=f5x5_red, kernel_size=(1,1), padding='same')
+        conv5x5 = self.__conv2d_bn(inp=conv5x5_red, filters=f5x5, kernel_size=(5,5), padding='same')
 
         # 3x3 max pooling
         pool = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
-        pool = Conv2D(fpool, (1,1), padding='same', activation=tf.nn.relu)(pool)
+        pool = self.__conv2d_bn(inp=pool, filters=fpool, kernel_size=(1,1), padding='same')
 
         # concatenate the convolutional layers , poling layer to be passed
         # onto the next layers.
@@ -161,11 +166,11 @@ class InceptionFramework:
         inp = Input(shape = INPUT_SHAPE)
         
         # add inception block 1
-        incep1 = self.Build_Inception_With_Dimension_Reduction(in_layer=inp, f1x1=64, f3x3_red=96, f3x3=128, 
+        incep1 = self.__Inception_With_Dimension_Reduction(in_layer=inp, f1x1=64, f3x3_red=96, f3x3=128, 
                                                                f5x5_red=16, f5x5=32, fpool=32)
         
         # add inception block 2
-        incep2 = self.Build_Inception_With_Dimension_Reduction(in_layer=incep1, f1x1=128, f3x3_red=128, f3x3=192, 
+        incep2 = self.__Inception_With_Dimension_Reduction(in_layer=incep1, f1x1=128, f3x3_red=128, f3x3=192, 
                                                                f5x5_red=32, f5x5=96, fpool=32)
 
         gap = GlobalAveragePooling2D(data_format='channels_last')(incep2)
@@ -174,7 +179,7 @@ class InceptionFramework:
         out  = Dense(1, activation='sigmoid')(dropout)
 
         # create model
-        model = Model(inputs=visible, outputs=out, name='inception_network')
+        model = Model(inputs=inp, outputs=out, name='inception_network')
         
         model.compile(optimizer='adam',
                       loss='binary_crossentropy',

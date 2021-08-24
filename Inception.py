@@ -1,11 +1,8 @@
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Flatten, Dropout, BatchNormalization, Activation, Input, concatenate
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, GaussianNoise, GaussianDropout
-from tensorflow.keras.layers import Activation, Dropout, ZeroPadding3D, GlobalAveragePooling2D, GlobalMaxPooling2D
-from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping, TensorBoard
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras import layers, losses
+from tensorflow.keras.layers import Dense, Flatten, Dropout, BatchNormalization, Activation, Input
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D, concatenate
 from tensorflow.keras.utils import plot_model
 
 class InceptionFramework:
@@ -50,51 +47,6 @@ class InceptionFramework:
         
         return out_tensor
     
-    
-    def Naive_Inception_Module(self, f1x1, f3x3, f5x5, INPUT_SHAPE=(299, 299, 3)):
-        
-        """
-        Builds the naive incception module where convolution on an input is performed
-        with 3 different sizes of filters (1x1, 3x3, 5x5). 
-        Additionally, max pooling is also performed. The outputs are concatenated 
-        and sent to the next inception module.
-        
-        Parameters:
-            f1x1: number of filters for the 1x1 convolutions
-            f3x3: number of filters for the 3x3 convolutions
-            f5x5: number of filters for the 5x5 convolutions
-            INPUT_SHAPE: the input layer shape. Default Valus is (299, 299, 3).
-        
-        Return:
-            model: the keras model instance.
-        
-        """
-        
-        # conv2d_bn(inp, filters, kernel_size, padding='same', strides=(1, 1))
-        
-        # model input
-        in_layer = Input(shape = INPUT_SHAPE)
-        
-        # 1x1 conv
-        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
-        
-        # 3x3 conv
-        conv3x3 = self.__conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same')
-        
-        # 5x5 conv
-        conv5x5 = self.__conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
-        
-        # 3x3 max pooling
-        pool3x3 = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same')(in_layer)
-        
-        # concatenate the convolution and the pooling layers,
-        out_tensor = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1)
-        
-        # create model
-        model = Model(inputs = in_layer, outputs = out_tensor, name = "Naive Inception Block")
-        
-        return model
-    
     def __Inception_With_Dimension_Reduction(self, in_layer, f1x1, f3x3_red, f3x3, f5x5_red, f5x5, fpool):
         
         """
@@ -122,7 +74,6 @@ class InceptionFramework:
             model: the inception block.
         
         """
-        
         
         # #1×1 conv
         conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
@@ -173,10 +124,13 @@ class InceptionFramework:
             inp_tensor: the input tensor.
             num_classes: the number of output classes.
             
+        Returns:
+            aux: the auxiliary output
+            
         """
         
         aux = AveragePooling2D(pool_size=(5, 5), strides=3)(inp_tensor)
-        aux = Conv2D(filters=128, strides=1, padding='same', activation=tf.nn.relu)(aux)
+        aux = Conv2D(filters=128, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu)(aux)
         aux = Flatten()(aux)
         aux = Dense(1024, activation=tf.nn.relu)(aux)
         aux = Dropout(0.7)(aux)
@@ -184,6 +138,50 @@ class InceptionFramework:
         
         return aux
         
+    def Naive_Inception_Module(self, f1x1, f3x3, f5x5, INPUT_SHAPE=(299, 299, 3)):
+        
+        """
+        Builds the naive incception module where convolution on an input is performed
+        with 3 different sizes of filters (1x1, 3x3, 5x5). 
+        Additionally, max pooling is also performed. The outputs are concatenated 
+        and sent to the next inception module.
+        
+        Parameters:
+            f1x1: number of filters for the 1x1 convolutions
+            f3x3: number of filters for the 3x3 convolutions
+            f5x5: number of filters for the 5x5 convolutions
+            INPUT_SHAPE: the input layer shape. Default Valus is (299, 299, 3).
+        
+        Return:
+            model: the keras model instance.
+        
+        """
+        
+        # conv2d_bn(inp, filters, kernel_size, padding='same', strides=(1, 1))
+        
+        # model input
+        in_layer = Input(shape = INPUT_SHAPE)
+        
+        # 1x1 conv
+        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
+        
+        # 3x3 conv
+        conv3x3 = self.__conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same')
+        
+        # 5x5 conv
+        conv5x5 = self.__conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
+        
+        # 3x3 max pooling
+        pool3x3 = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same')(in_layer)
+        
+        # concatenate the convolution and the pooling layers,
+        out_tensor = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1)
+        
+        # create model
+        model = Model(inputs = in_layer, outputs = out_tensor, name = "Naive Inception Block")
+        
+        return model
+    
     
     def Build_Sample_Inception_Network(self, INPUT_SHAPE=(299, 299, 3)):
         
@@ -230,7 +228,7 @@ class InceptionFramework:
         return model
 
     
-    def InceptionV1(self, INPUT_SHAPE=(299, 299, 3), num_classes):
+    def GoogLeNetInceptionV1(self, num_classes, INPUT_SHAPE=(299, 299, 3)):
         
         """
         Builds the full incception network with the parameters defined 
@@ -247,17 +245,17 @@ class InceptionFramework:
         
         """
         
-        inp = layers.Input(shape=INPUT_SHAPE)
-        input_tensor = layers.experimental.preprocessing.Resizing(224, 
-                                                                  224, 
-                                                                  interpolation="bilinear", 
-                                                                  input_shape=x_train.shape[1:])(inp)
+        inp = Input(shape=INPUT_SHAPE)
+#         input_tensor = Resizing(224, 
+#                                 224, 
+#                                 interpolation="bilinear", 
+#                                 input_shape=x_train.shape[1:])(inp)
         
-        x = layers.Conv2D(filters=64, kernel_size=7, strides=2, padding='same', activation=tf.nn.relu)(input_tensor)
-        x = layers.MaxPooling2D(pool_size=(3,3), strides=2)(x)
-        x = layers.Conv2D(filters=64, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu)(x)
-        x = layers.Conv2D(filters=192, kernel_size=3, strides=1, padding='same', activation=tf.nn.relu)(x)
-        x = layers.MaxPooling2D(pool_size=3, strides=2)(x)
+        x = Conv2D(filters=64, kernel_size=7, strides=2, padding='same', activation=tf.nn.relu)(inp)
+        x = MaxPooling2D(pool_size=(3,3), strides=2)(x)
+        x = Conv2D(filters=64, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu)(x)
+        x = Conv2D(filters=192, kernel_size=3, strides=1, padding='same', activation=tf.nn.relu)(x)
+        x = MaxPooling2D(pool_size=3, strides=2)(x)
         
         inception3A = self.__Inception_With_Dimension_Reduction(in_layer=x, 
                                                                 f1x1=64, 
@@ -351,7 +349,7 @@ class InceptionFramework:
         model.compile(optimizer='adam', 
                       loss=[losses.sparse_categorical_crossentropy,
                             losses.sparse_categorical_crossentropy,
-                            losses.sparse_categorical_crossentropy]
+                            losses.sparse_categorical_crossentropy],
                       loss_weights=[1, 0.3, 0.3],
                       metrics=['accuracy'])
         
@@ -360,8 +358,3 @@ class InceptionFramework:
         
         return model
         
-        
-        
-        
-        
-  

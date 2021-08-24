@@ -85,7 +85,7 @@ class InceptionFramework:
         conv5x5 = self.__conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
         
         # 3x3 max pooling
-        pool3x3 = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
+        pool3x3 = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same')(in_layer)
         
         # concatenate the convolution and the pooling layers,
         out_tensor = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1)
@@ -136,7 +136,7 @@ class InceptionFramework:
         conv5x5 = self.__conv2d_bn(inp=conv5x5_red, filters=f5x5, kernel_size=(5,5), padding='same')
 
         # 3x3 max pooling and 1x1 projection layer - poolproj
-        pool = MaxPooling2D((3,3), strides=(1,1), padding='same')(in_layer)
+        pool = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same')(in_layer)
         pool = self.__conv2d_bn(inp=pool, filters=fpool, kernel_size=(1,1), padding='same')
 
         # concatenate the convolutional layers , poling layer to be passed
@@ -181,6 +181,8 @@ class InceptionFramework:
         aux = Dense(1024, activation=tf.nn.relu)(aux)
         aux = Dropout(0.7)(aux)
         aux = Dense(units=num_classes, activation=tf.nn.softmax)(aux)
+        
+        return aux
         
     
     def Build_Sample_Inception_Network(self, INPUT_SHAPE=(299, 299, 3)):
@@ -228,7 +230,7 @@ class InceptionFramework:
         return model
 
     
-    def InceptionV1(self, INPUT_SHAPE=(299, 299, 3)):
+    def InceptionV1(self, INPUT_SHAPE=(299, 299, 3), num_classes):
         
         """
         Builds the full incception network with the parameters defined 
@@ -238,8 +240,128 @@ class InceptionFramework:
         Parameters:
             
             INPUT_SHAPE (Optional): the input layer shape. Default Value is (299, 299, 3).
+            num_classes: the number of output classes.
         
         Return:
             model: the keras model instance.
         
         """
+        
+        inp = layers.Input(shape=INPUT_SHAPE)
+        input_tensor = layers.experimental.preprocessing.Resizing(224, 
+                                                                  224, 
+                                                                  interpolation="bilinear", 
+                                                                  input_shape=x_train.shape[1:])(inp)
+        
+        x = layers.Conv2D(filters=64, kernel_size=7, strides=2, padding='same', activation=tf.nn.relu)(input_tensor)
+        x = layers.MaxPooling2D(pool_size=(3,3), strides=2)(x)
+        x = layers.Conv2D(filters=64, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu)(x)
+        x = layers.Conv2D(filters=192, kernel_size=3, strides=1, padding='same', activation=tf.nn.relu)(x)
+        x = layers.MaxPooling2D(pool_size=3, strides=2)(x)
+        
+        inception3A = self.__Inception_With_Dimension_Reduction(in_layer=x, 
+                                                                f1x1=64, 
+                                                                f3x3_red=96, 
+                                                                f3x3=128, 
+                                                                f5x5_red=16, 
+                                                                f5x5=32, 
+                                                                fpool=32)
+        
+        inception3B = self.__Inception_With_Dimension_Reduction(in_layer=inception3A,
+                                                                f1x1=128,
+                                                                f3x3_red=128,
+                                                                f3x3=192,
+                                                                f5x5_red=32,
+                                                                f5x5=96,
+                                                                fpool=64)
+        
+        pool = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same')(inception3B)
+        
+        inception4A = self.__Inception_With_Dimension_Reduction(in_layer=pool,
+                                                                f1x1=192,
+                                                                f3x3_red=96,
+                                                                f3x3=208,
+                                                                f5x5_red=16,
+                                                                f5x5=48,
+                                                                fpool=64)
+        
+        aux1 = self.__IncepAuxiliaryClassifierModule(inp_tensor=inception4A, num_classes=num_classes)
+        
+        inception4B = self.__Inception_With_Dimension_Reduction(in_layer=inception4A,
+                                                                f1x1=160,
+                                                                f3x3_red=112,
+                                                                f3x3=224,
+                                                                f5x5_red=24,
+                                                                f5x5=64,
+                                                                fpool=64)
+        
+        inception4C = self.__Inception_With_Dimension_Reduction(in_layer=inception4B,
+                                                                f1x1=128,
+                                                                f3x3_red=128,
+                                                                f3x3=256,
+                                                                f5x5_red=24,
+                                                                f5x5=64,
+                                                                fpool=64)
+        
+        inception4D = self.__Inception_With_Dimension_Reduction(in_layer=inception4C,
+                                                                f1x1=112,
+                                                                f3x3_red=144,
+                                                                f3x3=288,
+                                                                f5x5_red=32,
+                                                                f5x5=64,
+                                                                fpool=64)
+        
+        aux2 = self.__IncepAuxiliaryClassifierModule(inp_tensor=inception4D, num_classes=num_classes)
+        
+        inception4E = self.__Inception_With_Dimension_Reduction(in_layer=inception4D,
+                                                                f1x1=256,
+                                                                f3x3_red=160,
+                                                                f3x3=320,
+                                                                f5x5_red=32,
+                                                                f5x5=128,
+                                                                fpool=128)
+        
+        pool = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same')(inception4E)
+        
+        inception5A = self.__Inception_With_Dimension_Reduction(in_layer=inception4D,
+                                                                f1x1=256,
+                                                                f3x3_red=160,
+                                                                f3x3=320,
+                                                                f5x5_red=32,
+                                                                f5x5=128,
+                                                                fpool=128)
+        
+        inception5B = self.__Inception_With_Dimension_Reduction(in_layer=inception5A,
+                                                                f1x1=384,
+                                                                f3x3_red=192,
+                                                                f3x3=384,
+                                                                f5x5_red=48,
+                                                                f5x5=128,
+                                                                fpool=128)
+        
+        GAP = GlobalAveragePooling2D(data_format='channels_last')(inception5B)
+        dropout = Dropout(0.4)(GAP)
+        out = Dense(units=num_classes, activation=tf.nn.softmax)(dropout)
+
+        # Create & Compile the model
+        # During training, the auxillary loss gets added to the total loss of the
+        # network with a discount weight (the losses of the auxiliary classifiers were weighted by 0.3). 
+        model = Model(inputs=inp, outputs=[out, aux1, aux2], name='GoogLeNet_Inception')
+        
+        model.compile(optimizer='adam', 
+                      loss=[losses.sparse_categorical_crossentropy,
+                            losses.sparse_categorical_crossentropy,
+                            losses.sparse_categorical_crossentropy]
+                      loss_weights=[1, 0.3, 0.3],
+                      metrics=['accuracy'])
+        
+        # summarize model
+        print(model.summary())
+        
+        return model
+        
+        
+        
+        
+        
+  

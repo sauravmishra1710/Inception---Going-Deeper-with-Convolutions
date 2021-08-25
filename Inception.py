@@ -18,7 +18,7 @@ class InceptionFramework:
         
         pass
     
-    def __conv2d_bn(self, inp, filters, kernel_size, padding='same', strides=(1, 1)):
+    def __conv2d_bn(self, inp, filters, kernel_size, padding='same', strides=(1, 1), name=None):
         
         """
         Utility function to apply convolution operation 
@@ -35,19 +35,28 @@ class InceptionFramework:
             out_tensor: Output tensor after the Convolution and BatchNormalization.
         """
         
+        if name is not None:
+            conv2d_name = name + "_conv2d"
+            bn_name = name + "_bn"
+        else:
+            conv2d_name = "Conv2d"
+            bn_name = "bn"
+        
         layer = Conv2D(filters=filters, 
                        kernel_size=kernel_size,
                        strides=strides,
-                       padding=padding)(inp)
+                       padding=padding,
+                       name=conv2d_name)(inp)
         
         layer = BatchNormalization(axis=3, 
-                                   scale=False)(layer) # assume channels_last
+                                   scale=False,
+                                   name=bn_name)(layer) # assume channels_last
         
         out_tensor = Activation(tf.nn.relu)(layer)
         
         return out_tensor
     
-    def __Inception_With_Dimension_Reduction(self, in_layer, f1x1, f3x3_red, f3x3, f5x5_red, f5x5, fpool):
+    def __Inception_With_Dimension_Reduction(self, in_layer, f1x1, f3x3_red, f3x3, f5x5_red, f5x5, fpool, name=None):
         
         """
         Builds the incception module where convolution on an input is performed
@@ -76,23 +85,23 @@ class InceptionFramework:
         """
         
         # #1×1 conv
-        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
+        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same', name=name)
 
         # 3x3 reduce (#3×3reduce) and #3x3 conv
-        conv3x3_red = self.__conv2d_bn(inp=in_layer, filters=f3x3_red, kernel_size=(1,1), padding='same')
-        conv3x3 = self.__conv2d_bn(inp=conv3x3_red, filters=f3x3, kernel_size=(3,3), padding='same')
+        conv3x3_red = self.__conv2d_bn(inp=in_layer, filters=f3x3_red, kernel_size=(1,1), padding='same', name=name)
+        conv3x3 = self.__conv2d_bn(inp=conv3x3_red, filters=f3x3, kernel_size=(3,3), padding='same', name=name)
 
         # 5x5 reduce (#5x5reduce) and #5x5 conv
-        conv5x5_red = self.__conv2d_bn(inp=in_layer, filters=f5x5_red, kernel_size=(1,1), padding='same')
-        conv5x5 = self.__conv2d_bn(inp=conv5x5_red, filters=f5x5, kernel_size=(5,5), padding='same')
+        conv5x5_red = self.__conv2d_bn(inp=in_layer, filters=f5x5_red, kernel_size=(1,1), padding='same', name=name)
+        conv5x5 = self.__conv2d_bn(inp=conv5x5_red, filters=f5x5, kernel_size=(5,5), padding='same', name=name)
 
         # 3x3 max pooling and 1x1 projection layer - poolproj
-        pool = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same')(in_layer)
-        pool = self.__conv2d_bn(inp=pool, filters=fpool, kernel_size=(1,1), padding='same')
+        pool = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same', name=name + "MaxPool2d")(in_layer)
+        pool = self.__conv2d_bn(inp=pool, filters=fpool, kernel_size=(1,1), padding='same', name=name)
 
         # concatenate the convolutional layers , poling layer to be passed
         # onto the next layers.
-        out_layer = concatenate([conv1x1, conv3x3, conv5x5, pool], axis=-1)
+        out_layer = concatenate([conv1x1, conv3x3, conv5x5, pool], axis=-1, name=name)
         
         return out_layer
     
@@ -152,33 +161,31 @@ class InceptionFramework:
             f5x5: number of filters for the 5x5 convolutions
             INPUT_SHAPE: the input layer shape. Default Valus is (299, 299, 3).
         
-        Return:
+        Returns:
             model: the keras model instance.
         
         """
-        
-        # conv2d_bn(inp, filters, kernel_size, padding='same', strides=(1, 1))
         
         # model input
         in_layer = Input(shape = INPUT_SHAPE)
         
         # 1x1 conv
-        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same')
+        conv1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same', name="1x1")
         
         # 3x3 conv
-        conv3x3 = self.__conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same')
+        conv3x3 = self.__conv2d_bn(inp=in_layer, filters=f3x3, kernel_size=(3,3), padding='same', name="3x3")
         
         # 5x5 conv
-        conv5x5 = self.__conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same')
+        conv5x5 = self.__conv2d_bn(inp=in_layer, filters=f5x5, kernel_size=(5,5), padding='same', name="5x5")
         
         # 3x3 max pooling
-        pool3x3 = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same')(in_layer)
+        pool3x3 = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same', name="3x3_MaxPool2d")(in_layer)
         
         # concatenate the convolution and the pooling layers,
-        out_tensor = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1)
+        out_tensor = concatenate([conv1x1, conv3x3, conv5x5, pool3x3], axis = -1, name="NaiveInception")
         
         # create model
-        model = Model(inputs = in_layer, outputs = out_tensor, name = "Naive Inception Block")
+        model = Model(inputs = in_layer, outputs = out_tensor, name = "Naive_Inception")
         
         return model
     
@@ -228,7 +235,7 @@ class InceptionFramework:
         return model
 
     
-    def GoogLeNetInceptionV1(self, num_classes, INPUT_SHAPE=(299, 299, 3)):
+    def GoogLeNetInceptionV1(self, num_classes, INPUT_SHAPE=(224, 224, 3)):
         
         """
         Builds the full incception network with the parameters defined 
@@ -246,10 +253,14 @@ class InceptionFramework:
         """
         
         inp = Input(shape=INPUT_SHAPE)
-#         input_tensor = Resizing(224, 
-#                                 224, 
-#                                 interpolation="bilinear", 
-#                                 input_shape=x_train.shape[1:])(inp)
+        
+        # original implementation GoogLeNet InceptionV1 model 
+        # receives images with the size 224 x 224 x 3. So, if the input 
+        # is of a different dimension, resize it to (224, 224, 3).
+        if INPUT_SHAPE != (224, 224, 3):
+            input_tensor = layers.experimental.preprocessing.Resizing(224, 
+                                                                      224, 
+                                                                      interpolation="bilinear")(inp)
         
         x = Conv2D(filters=64, kernel_size=7, strides=2, padding='same', activation=tf.nn.relu)(inp)
         x = MaxPooling2D(pool_size=(3,3), strides=2)(x)

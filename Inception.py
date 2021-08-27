@@ -339,7 +339,7 @@ class InceptionV1:
         
         pool = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same', name="MaxPool2d_2")(inception4E)
         
-        inception5A = self.__Inception_With_Dimension_Reduction(in_layer=inception4D,
+        inception5A = self.__Inception_With_Dimension_Reduction(in_layer=inception4E,
                                                                 f1x1=256,
                                                                 f3x3_red=160,
                                                                 f3x3=320,

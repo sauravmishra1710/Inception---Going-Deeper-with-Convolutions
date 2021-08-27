@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Dense, Flatten, Dropout, BatchNormalization,
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D, concatenate
 from tensorflow.keras.utils import plot_model
 
-class InceptionFramework:
+class InceptionV1:
     
     def __init__(self):
         

@@ -69,6 +69,7 @@ class InceptionV1:
         include the use of rectified linear activation which makes them dual-purpose.
         
         Parameters:
+            in_layer: the input layer.
             f1x1: number of filters for the 1x1 convolutions
             f3x3_red: number of filters for the 1x1 convolutions that 
                       reduce the parameters befor applying the 3x3 convolutions.
@@ -77,10 +78,9 @@ class InceptionV1:
                       reduce the parameters befor applying the 5x5 convolutions.
             f5x5: number of filters for the 5x5 convolutions
             fpool: number of filters for the pooling layer.
-            INPUT_SHAPE: the input layer shape. Default Values is (299, 299, 3).
         
         Return:
-            model: the inception block.
+            out_layer: the inception block.
         
         """
         

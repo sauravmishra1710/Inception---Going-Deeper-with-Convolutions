@@ -151,8 +151,8 @@ class InceptionV2:
         # [(1x7), (7x1)] convolutions.
         branch7x7_red = self.__conv2d_bn(inp=in_layer, filters=f7x7_red, kernel_size=(1,1), padding='same',
                                        name=name+"_branch2_1x1_1")
-        branch7x7 = self.__conv2d_bn(inp=conv1x1_red, filters=f7x7_1, kernel_size=(1,7), padding='same', name=name+"_branch2_1x7_2")
-        branch7x7 = self.__conv2d_bn(inp=conv1xn, filters=f7x7_2, kernel_size=(7,1), padding='same', name=name+"_branch2_7x1_3")
+        branch7x7 = self.__conv2d_bn(inp=branch7x7_red, filters=f7x7_1, kernel_size=(1,7), padding='same', name=name+"_branch2_1x7_2")
+        branch7x7 = self.__conv2d_bn(inp=branch7x7, filters=f7x7_2, kernel_size=(7,1), padding='same', name=name+"_branch2_7x1_3")
 
         # branch 3: 3x3 max pooling and 1x1 projection layer - poolproj
         pool = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same', name=name + "_MaxPool2d")(in_layer)

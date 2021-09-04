@@ -239,9 +239,82 @@ class InceptionV2:
         return out_layer
         
         
+    def ApplyInceptionGridSizeReduction(self, in_layer, fb1_red, fb1_3x3, fb2_red, fb2_3x3, name=None):
+        
+        """
+        Applies the improved pooling operation 
+        (as seen in figure 10 in the paper). 
+        
+        "Inception module that reduces the grid-size while 
+        expands the filter banks. It is both cheap and avoids 
+        the representational bottleneck."
+        
+        
+        """
+        
+        # branch 1: double 3x3 convolution blocks
+        branch1_red = self.__conv2d_bn(inp=in_layer, filters=fb1_red, kernel_size=(1,1), padding='same', 
+                                       name=name+"_branch1_reduce")
+        branch1 = self.__conv2d_bn(inp=branch1_red, filters=fb1_3x3, kernel_size=(3,3), padding='same',
+                                        strides=(1, 1), name=name+"_branch1_conv1")
+        branch1 = self.__conv2d_bn(inp=branch3x3_red, filters=fb1_3x3, kernel_size=(3,3), padding='same', 
+                                        strides=(2, 2), name=name+"_branch1_conv2")
+        
+        # branch 1: double 3x3 convolution blocks
+        branch2_red = self.__conv2d_bn(inp=in_layer, filters=fb2_red, kernel_size=(1,1), padding='same', 
+                                       name=name+"_branch2_reduce")
+        branch2 = self.__conv2d_bn(inp=branch1_red, filters=fb2_3x3, kernel_size=(3,3), padding='same',
+                                        strides=(1, 1), name=name+"_branch2_conv1")
+        
+        # branch 3: pooling
+        branch3 = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same', name=name + "_MaxPool2d")(in_layer)
+        
+        # concatenate the convolutional layers , poling layer to be passed
+        # onto the next layers.
+        out_layer = concatenate([branch1, branch2, branch3], axis=-1, name=name+"_concat")
+        
+        return out_layer
         
         
         
+    def __IncepAuxiliaryClassifierModule(self, inp_tensor, num_classes, name=None):
         
+        """
+        Builds the inception auxiliary classifier. 
+        GoogLeNet introduces two auxiliary losses before the 
+        actual loss and makes the gradients flow backward more sensible. 
+        These gradients travel a shorter path and help initial layers converge faster.
         
+        These classifiers take the form of smaller convolutional networks put 
+        on top of the output of the Inception (4e) module. 
+        During training, their loss gets added to the total loss of the
+        network with a discount weight (the losses of the auxiliary classifiers were weighted by 0.3). At
+        inference time, these auxiliary networks are discarded.
         
+        The auxiliary classifier architecture is as follows - 
+            1. An average pooling layer with 5×5 filter size and stride 3.
+            2. A 1×1 convolution with 128 filters for dimension reduction and rectified linear activation.
+            3. A fully connected layer with 1024 units and rectified linear activation.
+            4. A dropout layer with 70% ratio of dropped outputs.
+            5. A linear layer with softmax loss as the classifier (predicting the same 1000 classes as the
+               main classifier, but removed at inference time).
+            
+        Ref: Section 5 in the paper @ https://arxiv.org/pdf/1409.4842.pdf 
+        
+        Parameters:
+            inp_tensor: the input tensor.
+            num_classes: the number of output classes.
+            
+        Returns:
+            aux: the auxiliary output
+            
+        """
+        
+        aux = AveragePooling2D(pool_size=(5, 5), strides=3, name=name+"_AvgPool2d")(inp_tensor)
+        aux = Conv2D(filters=128, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu, name=name+"_1x1_Conv2d")(aux)
+        aux = Flatten()(aux)
+        aux = Dense(1024, activation=tf.nn.relu)(aux)
+        aux = Dropout(0.7)(aux)
+        aux = Dense(units=num_classes, activation=tf.nn.softmax, name=name+"_dense")(aux)
+        
+        return aux

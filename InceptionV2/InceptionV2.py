@@ -190,6 +190,16 @@ class InceptionV2:
         
         Parameters:
             in_layer: the input layer.
+            f7x7_red: number of filters in the dimension reduction block before the larger 7x7 convolution.
+            f7x7: number of filters in the 7x7 convolution branch.
+            f3x3_red: number of filters in the dimension reduction block before the larger 3x3 convolution.
+            f3x3: number of filters in the 3x3 convolution branch 
+            f1x1: number of filters in the 1x1 convolution branch  
+            fpool: number of filters in the pooling branch.
+            name: the generic name for the current inception block.
+            
+        Return:
+            out_layer: the inception block (corresponding the figure 7 defined in the original paper).
         
         """
         

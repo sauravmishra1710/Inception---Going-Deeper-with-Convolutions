@@ -126,11 +126,17 @@ class InceptionV2:
         
         Parameters:
             in_layer: the input layer.
-            filters7x7: number of filters used for the convolutional blocks
+            f1x1: number of filters in the 1x1 convolution block.
+            f7x7_red: number of filters in the dimension reduction block before the single 7x7 convolution branch.
+            f7x7_1: number of filters in the single 1x7 convolution branch. 
+            f7x7_2: number of filters in the single 7x1 convolution branch. 
+            f7x7b2_dbl_red: number of filters in the dimension reduction block before the double 7x7 convolution branch.
+            f7x7b2_dbl1: number of filters in the 1x7 block in the double branch.  
+            f7x7b2_dbl2: number of filters in the 7x1 block in the double branch (last 7x1 block). 
             fpool: number of filters for the pooling layer.
         
         Return:
-            out_layer: the inception block.
+            out_layer: the inception block (corresponding the figure 6 defined in the original paper).
         
         """
         
@@ -166,3 +172,66 @@ class InceptionV2:
         out_layer = concatenate([branch7x7dbl, branch7x7, branch_pool, branch1x1], axis=-1, name=name+"_concat")
         
         return out_layer
+    
+    def InceptionFigure7(self, in_layer, f7x7_red, f7x7, f3x3_red, f3x3, f1x1, fpool, name=None):
+        
+        """
+        Constructs the Indeption Block as shows in
+        Figure 7 in the original paper @
+        https://arxiv.org/pdf/1512.00567.pdf
+        
+        "2×Inception As in figure 7 8×8×1280 - 
+        Inception modules with expanded the filter bank outputs.
+        This architecture is used on the coarsest (8 × 8) grids to promote
+        high dimensional representations. This solution is used only on the coarsest grid,
+        since that is the place where producing high dimensional sparse
+        representation is the most critical as the ratio of local processing
+        (by 1 × 1 convolutions) is increased compared to the spatial aggregation."
+        
+        Parameters:
+            in_layer: the input layer.
+        
+        """
+        
+        # branch 1: 7x7 convolution branch split into two 3x3, [(1x3), (3x1)] 
+        # convolution blocks respectively.
+        branch7x7_red = self.__conv2d_bn(inp=in_layer, filters=f7x7_red, kernel_size=(1,1), padding='same', 
+                                       name=name+"_branch7x7_reduce")
+        branch7x7 = self.__conv2d_bn(inp=branch7x7_red, filters=f7x7, kernel_size=(3,3), padding='same',
+                                        name=name+"_branch7x7_1")
+        branch7x7_1 = self.__conv2d_bn(inp=branch7x7, filters=f7x7, kernel_size=(1,3), padding='same', 
+                                        name=name+"_branch7x7_2")
+        branch7x7_2 = self.__conv2d_bn(inp=branch7x7, filters=f7x7, kernel_size=(3,1), padding='same', 
+                                        name=name+"_branch7x7_3")
+        branch7x7 = concatenate([branch7x7_1, branch7x7_2], axis=-1, name=name+"_7x7_concat")
+        
+        # branch 2: 3x3 comvolution split into [(1x3), (3x1)] 
+        # convolution blocks respectively.
+        branch3x3_red = self.__conv2d_bn(inp=in_layer, filters=f3x3_red, kernel_size=(1,1), padding='same', 
+                                       name=name+"_branch3x3_reduce")
+        branch3x3_1 = self.__conv2d_bn(inp=branch3x3_red, filters=f3x3, kernel_size=(1,3), padding='same',
+                                        name=name+"_branch3x3_1")
+        branch3x3_2 = self.__conv2d_bn(inp=branch3x3_red, filters=f3x3, kernel_size=(3,1), padding='same', 
+                                        name=name+"_branch3x3_2")
+        branch3x3 = concatenate([branch3x3_1, branch3x3_2], axis=-1, name=name+"_3x3_concat")
+        
+        # branch 3: 3x3 max pooling and 1x1 projection layer - poolproj
+        pool = MaxPooling2D(pool_size=(3,3), strides=(1,1), padding='same', name=name + "_MaxPool2d")(in_layer)
+        pool = self.__conv2d_bn(inp=pool, filters=fpool, kernel_size=(1,1), padding='same', name=name+"_1x1_projection")
+        
+        # branch 4: #1×1 conv
+        branch1x1 = self.__conv2d_bn(inp=in_layer, filters=f1x1, kernel_size=(1,1), padding='same', name=name+"_branch4_1x1_")
+        
+        # concatenate the convolutional layers , poling layer to be passed
+        # onto the next layers.
+        out_layer = concatenate([branch7x7, branch3x3, pool, branch1x1], axis=-1, name=name+"_concat")
+        
+        return out_layer
+        
+        
+        
+        
+        
+        
+        
+        

@@ -244,7 +244,7 @@ class InceptionV1:
         
         Parameters:
             
-            INPUT_SHAPE (Optional): the input layer shape. Default Value is (299, 299, 3).
+            INPUT_SHAPE (Optional): the input layer shape. Default Value is (244, 244, 3).
             num_classes: the number of output classes.
         
         Return:

@@ -60,7 +60,7 @@ class InceptionV2:
         
         return out_tensor
         
-    def InceptionFigure5(self, in_layer, f1x1=64, f3x3_red=96, f3x3=128, f5x5_red=16, f5_3x3=32, fpool=32, name=None):
+    def __InceptionFigure5(self, in_layer, f1x1=64, f3x3_red=96, f3x3=128, f5x5_red=16, f5_3x3=32, fpool=32, name=None):
         
         """
         Constructs the Indeption Block as shows in
@@ -112,7 +112,20 @@ class InceptionV2:
         
         return out_layer
     
-    def InceptionFigure6(self, in_layer, f1x1, f7x7_red, f7x7_1, f7x7_2, f7x7b2_dbl_red, f7x7b2_dbl1, f7x7b2_dbl2, fpool, name=None):
+    def GetInceptionNetOnFigure5(self):
+        
+        """
+        Creates and returns a sample model based on 
+        figure 5 in the InceptionV3 paper.
+        
+        """
+        inp = layers.Input(shape=(299, 299, 3))
+        out = self.__InceptionFigure5(in_layer=inp, name="Inception3a_fig5")
+
+        model = Model(inputs = inp, outputs = out, name = "Figure5_InceptionNet")
+        return model
+    
+    def __InceptionFigure6(self, in_layer, f1x1, f7x7_red, f7x7_1, f7x7_2, f7x7b2_dbl_red, f7x7b2_dbl1, f7x7b2_dbl2, fpool, name=None):
         
         """
         Constructs the Indeption Block as shows in
@@ -173,7 +186,29 @@ class InceptionV2:
         
         return out_layer
     
-    def InceptionFigure7(self, in_layer, f7x7_red, f7x7, f3x3_red, f3x3, f1x1, fpool, name=None):
+    def GetInceptionNetOnFigure6(self):
+        
+        """
+        Creates and returns a sample model based on 
+        figure 6 in the InceptionV3 paper.
+        
+        """
+        inp = layers.Input(shape=(299, 299, 3))
+        out = self.__InceptionFigure6(in_layer=inp,
+                                      f1x1= 192,
+                                      f7x7_red=128, 
+                                      f7x7_1=128, 
+                                      f7x7_2=192, 
+                                      f7x7b2_dbl_red=128, 
+                                      f7x7b2_dbl1=128, 
+                                      f7x7b2_dbl2=192, 
+                                      fpool=192,
+                                      name="inception4a_fig6")
+
+        model = Model(inputs = inp, outputs = out, name = "Figure6_InceptionNet")
+        return model
+    
+    def __InceptionFigure7(self, in_layer, f7x7_red, f7x7, f3x3_red, f3x3, f1x1, fpool, name=None):
         
         """
         Constructs the Indeption Block as shows in
@@ -237,13 +272,34 @@ class InceptionV2:
         out_layer = concatenate([branch7x7, branch3x3, pool, branch1x1], axis=-1, name=name+"_concat")
         
         return out_layer
+    
+    def GetInceptionNetOnFigure7(self):
+        
+        """
+        Creates and returns a sample model based on 
+        figure 7 in the InceptionV3 paper.
+        
+        """
+        inp = layers.Input(shape=(299, 299, 3))
+        out = self.__InceptionFigure7(in_layer=inp,
+                                      f7x7_red=448, 
+                                      f7x7=384, 
+                                      f3x3_red=384, 
+                                      f3x3=384, 
+                                      f1x1=320,
+                                      fpool=192, 
+                                      name="Inception5a_fig7")
+
+        model = Model(inputs = inp, outputs = out, name = "Figure7_InceptionNet")
+        return model
         
         
-    def ApplyInceptionGridSizeReduction(self, in_layer, fb1_red, fb1_3x3, fb2_red, fb2_3x3, name=None):
+    def __ApplyInceptionGridSizeReduction(self, in_layer, fb1_red, fb1_3x3, fb2_red, fb2_3x3, name=None):
         
         """
         Applies the improved pooling operation 
-        (as seen in figure 10 in the paper). 
+        as seen in figure 10 in the paper @
+        https://arxiv.org/pdf/1512.00567.pdf 
         
         "Inception module that reduces the grid-size while 
         expands the filter banks. It is both cheap and avoids 
@@ -257,14 +313,14 @@ class InceptionV2:
                                        name=name+"_branch1_reduce")
         branch1 = self.__conv2d_bn(inp=branch1_red, filters=fb1_3x3, kernel_size=(3,3), padding='same',
                                         strides=(1, 1), name=name+"_branch1_conv1")
-        branch1 = self.__conv2d_bn(inp=branch3x3_red, filters=fb1_3x3, kernel_size=(3,3), padding='same', 
+        branch1 = self.__conv2d_bn(inp=branch1, filters=fb1_3x3, kernel_size=(3,3), padding='same', 
                                         strides=(2, 2), name=name+"_branch1_conv2")
         
         # branch 1: double 3x3 convolution blocks
         branch2_red = self.__conv2d_bn(inp=in_layer, filters=fb2_red, kernel_size=(1,1), padding='same', 
                                        name=name+"_branch2_reduce")
         branch2 = self.__conv2d_bn(inp=branch1_red, filters=fb2_3x3, kernel_size=(3,3), padding='same',
-                                        strides=(1, 1), name=name+"_branch2_conv1")
+                                        strides=(2, 2), name=name+"_branch2_conv1")
         
         # branch 3: pooling
         branch3 = MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same', name=name + "_MaxPool2d")(in_layer)
@@ -274,8 +330,24 @@ class InceptionV2:
         out_layer = concatenate([branch1, branch2, branch3], axis=-1, name=name+"_concat")
         
         return out_layer
+    
+    def GetInceptionNetOnFigure10(self):
         
+        """
+        Creates and returns a sample model based on 
+        figure 10 (Grid Size Reduction) in the InceptionV3 paper.
         
+        """
+        inp = layers.Input(shape=(299, 299, 3))
+        out = self.__ApplyInceptionGridSizeReduction(in_layer=inp,
+                                                     fb1_red=64, 
+                                                     fb1_3x3=178, 
+                                                     fb2_red=64, 
+                                                     fb2_3x3=302, 
+                                                     name="GridSizeReduction")
+        
+        model = Model(inputs = inp, outputs = out, name = "Figure10_InceptionNet")
+        return model
         
     def __IncepAuxiliaryClassifierModule(self, inp_tensor, num_classes, name=None):
         
@@ -299,7 +371,7 @@ class InceptionV2:
             5. A linear layer with softmax loss as the classifier (predicting the same 1000 classes as the
                main classifier, but removed at inference time).
             
-        Ref: Section 5 in the paper @ https://arxiv.org/pdf/1409.4842.pdf 
+        Ref: Figure 8 in the paper @ https://arxiv.org/pdf/1512.00567.pdf
         
         Parameters:
             inp_tensor: the input tensor.

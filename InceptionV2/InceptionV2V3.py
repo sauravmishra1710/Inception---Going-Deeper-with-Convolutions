@@ -7,7 +7,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, Glob
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.regularizers import  l2
 
-class InceptionV2:
+class InceptionV2V3:
     
     def __init__(self):
         
@@ -390,3 +390,23 @@ class InceptionV2:
         aux = Dense(units=num_classes, activation=tf.nn.softmax, name=name+"_dense")(aux)
         
         return aux
+    
+    def InceptionV3(self):
+        
+        """
+        Creates the inception v3 model as proposed in
+        the paper @ https://arxiv.org/pdf/1512.00567.pdf
+        
+        """
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

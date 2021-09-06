@@ -60,7 +60,7 @@ class InceptionV2V3:
         
         return out_tensor
         
-    def __InceptionFigure5(self, in_layer, f1x1=64, f3x3_red=96, f3x3=128, f5x5_red=16, f5_3x3=32, fpool=32, name=None):
+    def __InceptionFigure5(self, in_layer, f1x1, f3x3_red, f3x3=, f5x5_red, f5_3x3, fpool, name=None):
         
         """
         Constructs the Indeption Block as shows in
@@ -120,7 +120,14 @@ class InceptionV2V3:
         
         """
         inp = layers.Input(shape=(299, 299, 3))
-        out = self.__InceptionFigure5(in_layer=inp, name="Inception3a_fig5")
+        out = self.__InceptionFigure5(in_layer=inp, 
+                                      f1x1=64, 
+                                      f3x3_red=96, 
+                                      f3x3=128, 
+                                      f5x5_red=16,
+                                      f5_3x3=32, 
+                                      fpool=32, 
+                                      name="Inception3a_fig5")
 
         model = Model(inputs = inp, outputs = out, name = "Figure5_InceptionNet")
         return model
@@ -383,7 +390,7 @@ class InceptionV2V3:
         """
         
         aux = AveragePooling2D(pool_size=(5, 5), strides=3, name=name+"_AvgPool2d")(inp_tensor)
-        aux = Conv2D(filters=128, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu, name=name+"_1x1_Conv2d")(aux)
+        aux = self.__conv2d_bn(inp=aux, filters=128, kernel_size=1, padding='same', name=name+"_1x1_Conv2d")
         aux = Flatten()(aux)
         aux = Dense(1024, activation=tf.nn.relu)(aux)
         aux = Dropout(0.7)(aux)
@@ -391,22 +398,177 @@ class InceptionV2V3:
         
         return aux
     
-    def InceptionV3(self):
+    def InceptionV3(self, num_classes=10, INPUT_SHAPE=(299, 299, 3)):
         
         """
         Creates the inception v3 model as proposed in
         the paper @ https://arxiv.org/pdf/1512.00567.pdf
         
+        Parameters:
+            
+            INPUT_SHAPE (Optional): the input layer shape. Default Value is (299, 299, 3).
+            num_classes: the number of output classes.
+        
+        Return:
+            model: the keras model instance.
+        
         """
         
+        inp = Input(shape=INPUT_SHAPE)
+        
+        # original implementation GoogLeNet InceptionV2/V3 model 
+        # receives images with the size 299 x 299 x 3. So, if the input 
+        # is of a different dimension, resize it to (299, 299, 3).
+        if INPUT_SHAPE != (299, 299, 3):
+            input_tensor = layers.experimental.preprocessing.Resizing(299, 
+                                                                      299, 
+                                                                      interpolation="bilinear")(inp)
+            
+        x = self.__conv2d_bn(inp=inp, filters=32, kernel_size=3, strides=(2, 2), padding='valid')
+        x = self.__conv2d_bn(inp=x, filters=32, kernel_size=3, padding='valid')
+        x = self.__conv2d_bn(inp=x, filters=64, kernel_size=3)
+        x = layers.MaxPooling2D(pool_size=3, strides=2)(x)
+
+        x = self.__conv2d_bn(inp=x, filters=80, kernel_size=1, padding='valid')
+        x = self.__conv2d_bn(inp=x, filters=192, kernel_size=3, padding='valid')
+        x = layers.MaxPooling2D(pool_size=3, strides=2)(x)
         
         
+        inception3a = self.__InceptionFigure5(in_layer=x, 
+                                              f1x1=64, 
+                                              f3x3_red=48, 
+                                              f3x3=64, 
+                                              f5x5_red=64,
+                                              f5_3x3=96, 
+                                              fpool=32, 
+                                              name="Inception3a")
         
+        inception3b = self.__InceptionFigure5(in_layer=inception3a, 
+                                              f1x1=64, 
+                                              f3x3_red=48, 
+                                              f3x3=64, 
+                                              f5x5_red=64,
+                                              f5_3x3=96, 
+                                              fpool=32, 
+                                              name="Inception3b")
         
+        inception3c = self.__InceptionFigure5(in_layer=inception3b, 
+                                              f1x1=64, 
+                                              f3x3_red=48, 
+                                              f3x3=64, 
+                                              f5x5_red=64,
+                                              f5_3x3=96, 
+                                              fpool=32, 
+                                              name="Inception3c")
         
+        gridSizeReduction1 = self.__ApplyInceptionGridSizeReduction(in_layer=inception3c,
+                                                                    fb1_red=64, 
+                                                                    fb1_3x3=178, 
+                                                                    fb2_red=64, 
+                                                                    fb2_3x3=302, 
+                                                                    name="GridSizeReduction1")
         
+        inception4a = self.__InceptionFigure6(in_layer=gridSizeReduction1,
+                                              f1x1= 192,
+                                              f7x7_red=128, 
+                                              f7x7_1=128, 
+                                              f7x7_2=192, 
+                                              f7x7b2_dbl_red=128, 
+                                              f7x7b2_dbl1=128, 
+                                              f7x7b2_dbl2=192, 
+                                              fpool=192,
+                                              name="inception4a")
         
+        inception4b = self.__InceptionFigure6(in_layer=inception4a,
+                                              f1x1= 192,
+                                              f7x7_red=160, 
+                                              f7x7_1=160, 
+                                              f7x7_2=192, 
+                                              f7x7b2_dbl_red=160, 
+                                              f7x7b2_dbl1=160, 
+                                              f7x7b2_dbl2=160, 
+                                              fpool=192,
+                                              name="inception4b")
         
+        inception4c = self.__InceptionFigure6(in_layer=inception4b,
+                                              f1x1= 192,
+                                              f7x7_red=160, 
+                                              f7x7_1=160, 
+                                              f7x7_2=192, 
+                                              f7x7b2_dbl_red=160, 
+                                              f7x7b2_dbl1=160, 
+                                              f7x7b2_dbl2=160, 
+                                              fpool=192,
+                                              name="inception4c")
         
+        inception4d = self.__InceptionFigure6(in_layer=inception4c,
+                                              f1x1= 192,
+                                              f7x7_red=160, 
+                                              f7x7_1=160, 
+                                              f7x7_2=192, 
+                                              f7x7b2_dbl_red=160, 
+                                              f7x7b2_dbl1=160, 
+                                              f7x7b2_dbl2=160, 
+                                              fpool=192,
+                                              name="inception4d")
         
+        inception4e = self.__InceptionFigure6(in_layer=inception4d,
+                                              f1x1= 192,
+                                              f7x7_red=192, 
+                                              f7x7_1=192, 
+                                              f7x7_2=192, 
+                                              f7x7b2_dbl_red=192, 
+                                              f7x7b2_dbl1=192, 
+                                              f7x7b2_dbl2=192, 
+                                              fpool=192,
+                                              name="inception4e")
+        
+        aux = self.__IncepAuxiliaryClassifierModule(inp_tensor=inception4e, 
+                                                    num_classes=num_classes, 
+                                                    name="AuxiliaryClassifier")
+        
+        gridSizeReduction2 = self.__ApplyInceptionGridSizeReduction(in_layer=inception4e,
+                                                                    fb1_red=64, 
+                                                                    fb1_3x3=178, 
+                                                                    fb2_red=64, 
+                                                                    fb2_3x3=302, 
+                                                                    name="GridSizeReduction2")
+        
+        inception5a = self.__InceptionFigure7(in_layer=gridSizeReduction2,
+                                              f7x7_red=448, 
+                                              f7x7=384, 
+                                              f3x3_red=384, 
+                                              f3x3=384, 
+                                              f1x1=320,
+                                              fpool=192, 
+                                              name="Inception5a")
+        
+        inception5b = self.__InceptionFigure7(in_layer=inception5a,
+                                              f7x7_red=448, 
+                                              f7x7=384, 
+                                              f3x3_red=384, 
+                                              f3x3=384, 
+                                              f1x1=320,
+                                              fpool=192, 
+                                              name="Inception5b")
+        
+        GAP = GlobalAveragePooling2D(data_format='channels_last')(inception5b)
+        dropout = Dropout(0.4)(GAP)
+        out = Dense(units=num_classes, activation=tf.nn.softmax, name="InceptionV3_Dense_Output")(dropout)
+        
+        # Create & Compile the model
+        # During training, the auxillary loss gets added to the total loss of the
+        # network with a discount weight (the losses of the auxiliary classifiers were weighted by 0.3). 
+        model = Model(inputs=inp, outputs=[out, aux1], name='GoogLeNet_Inception')
+        
+        model.compile(optimizer='RMSprop', 
+                      loss=[losses.sparse_categorical_crossentropy,
+                            losses.sparse_categorical_crossentropy],
+                      loss_weights=[1, 0.3],
+                      metrics=['accuracy'])
+        
+        # summarize model
+        print(model.summary())
+        
+        return model
         

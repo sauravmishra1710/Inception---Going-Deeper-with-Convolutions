@@ -60,7 +60,7 @@ class InceptionV2V3:
         
         return out_tensor
         
-    def __InceptionFigure5(self, in_layer, f1x1, f3x3_red, f3x3=, f5x5_red, f5_3x3, fpool, name=None):
+    def __InceptionFigure5(self, in_layer, f1x1, f3x3_red, f3x3, f5x5_red, f5_3x3, fpool, name=None):
         
         """
         Constructs the Indeption Block as shows in
@@ -424,13 +424,13 @@ class InceptionV2V3:
                                                                       299, 
                                                                       interpolation="bilinear")(inp)
             
-        x = self.__conv2d_bn(inp=inp, filters=32, kernel_size=3, strides=(2, 2), padding='valid')
-        x = self.__conv2d_bn(inp=x, filters=32, kernel_size=3, padding='valid')
-        x = self.__conv2d_bn(inp=x, filters=64, kernel_size=3)
+        x = self.__conv2d_bn(inp=inp, filters=32, kernel_size=3, strides=(2, 2), padding='valid', name="l1")
+        x = self.__conv2d_bn(inp=x, filters=32, kernel_size=3, padding='valid', name="l2")
+        x = self.__conv2d_bn(inp=x, filters=64, kernel_size=3, name="l3")
         x = layers.MaxPooling2D(pool_size=3, strides=2)(x)
 
-        x = self.__conv2d_bn(inp=x, filters=80, kernel_size=1, padding='valid')
-        x = self.__conv2d_bn(inp=x, filters=192, kernel_size=3, padding='valid')
+        x = self.__conv2d_bn(inp=x, filters=80, kernel_size=1, padding='valid', name="l4")
+        x = self.__conv2d_bn(inp=x, filters=192, kernel_size=3, padding='valid', name="l5")
         x = layers.MaxPooling2D(pool_size=3, strides=2)(x)
         
         
@@ -559,7 +559,7 @@ class InceptionV2V3:
         # Create & Compile the model
         # During training, the auxillary loss gets added to the total loss of the
         # network with a discount weight (the losses of the auxiliary classifiers were weighted by 0.3). 
-        model = Model(inputs=inp, outputs=[out, aux1], name='GoogLeNet_Inception')
+        model = Model(inputs=inp, outputs=[out, aux], name='GoogLeNet_InceptionV3')
         
         model.compile(optimizer='RMSprop', 
                       loss=[losses.sparse_categorical_crossentropy,

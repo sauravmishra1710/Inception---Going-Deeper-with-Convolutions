@@ -416,14 +416,6 @@ class InceptionV2V3:
         
         inp = Input(shape=INPUT_SHAPE)
         
-        # original implementation GoogLeNet InceptionV2/V3 model 
-        # receives images with the size 299 x 299 x 3. So, if the input 
-        # is of a different dimension, resize it to (299, 299, 3).
-        if INPUT_SHAPE != (299, 299, 3):
-            input_tensor = layers.experimental.preprocessing.Resizing(299, 
-                                                                      299, 
-                                                                      interpolation="bilinear")(inp)
-            
         x = self.__conv2d_bn(inp=inp, filters=32, kernel_size=3, strides=(2, 2), padding='valid', name="l1")
         x = self.__conv2d_bn(inp=x, filters=32, kernel_size=3, padding='valid', name="l2")
         x = self.__conv2d_bn(inp=x, filters=64, kernel_size=3, name="l3")

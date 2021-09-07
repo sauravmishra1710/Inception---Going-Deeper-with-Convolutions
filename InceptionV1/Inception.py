@@ -254,14 +254,6 @@ class InceptionV1:
         
         inp = Input(shape=INPUT_SHAPE)
         
-        # original implementation GoogLeNet InceptionV1 model 
-        # receives images with the size 224 x 224 x 3. So, if the input 
-        # is of a different dimension, resize it to (224, 224, 3).
-        if INPUT_SHAPE != (224, 224, 3):
-            input_tensor = layers.experimental.preprocessing.Resizing(224, 
-                                                                      224, 
-                                                                      interpolation="bilinear")(inp)
-        
         x = Conv2D(filters=64, kernel_size=7, strides=2, padding='same', activation=tf.nn.relu)(inp)
         x = MaxPooling2D(pool_size=(3,3), strides=2)(x)
         x = Conv2D(filters=64, kernel_size=1, strides=1, padding='same', activation=tf.nn.relu)(x)
